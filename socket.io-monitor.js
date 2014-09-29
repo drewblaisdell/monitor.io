@@ -93,14 +93,25 @@ Monitor.prototype.renderSocket = function(socketID) {
   current = this.sockets[socketID];
 
   if (current.socket.disconnected) {
-    console.log(current.socket.conn.remoteAddress);
+    this.cursor.write(current.socket.conn.remoteAddress);
   } else {
+    this.cursor.write(current.socket.conn.remoteAddress);
+
     if (current.latency) {
-      console.log(current.socket.conn.remoteAddress + ' latency: ' + current.latency + 'ms');
-    } else {
-      console.log(current.socket.conn.remoteAddress);
+      this.cursor.write(' latency: ');
+      if (current.latency < 100) {
+        this.cursor.green();
+      } else if (current.latency < 500) {
+        this.cursor.hex('#FFAA00');
+      } else {
+        this.cursor.red();
+      }
+
+      this.cursor.write(current.latency + 'ms');
+      this.cursor.reset();
     }
   }
+  this.cursor.write('\n');
 };
 
 Monitor.prototype.resetCursor = function() {

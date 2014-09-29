@@ -19,8 +19,12 @@
   <script>
     var socket = io();
     
+    var myLatency = Math.floor(Math.random() * 1000);
+
     socket.on('_echo', function(message) {
-      socket.emit('_echo', message);
+      setTimeout(function() {
+        socket.emit('_echo', message);
+      }, myLatency + Math.floor(Math.random() * 30));
     });
   </script>
   </body>
