@@ -1,0 +1,10 @@
+{
+  "name": "monitor.io",
+  "version": "0.0.1",
+  "description": "socket.io latency monitor",
+  "dependencies": {
+    "express": "^4.9.0",
+    "socket.io": "^1.1.0",
+    "ansi": "^0.3.0"
+  }
+}

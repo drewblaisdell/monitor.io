@@ -1,0 +1,3 @@
+var Monitor = function(socket) {
+
+};
