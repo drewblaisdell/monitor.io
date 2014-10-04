@@ -8,7 +8,6 @@ module.exports = Monitor;
 
 // Monitor constructor.
 // Accepts an instance of Socket.IO
-
 function Monitor(io, options) {
   if (!(this instanceof Monitor)) {
     return new Monitor(io, options);
@@ -23,7 +22,7 @@ function Monitor(io, options) {
   this.sockets = {};
 
   // Tell Socket.IO to use Monitor.IO.
-  io.use(this.middleware.bind(this));
+  io.use(this._middleware.bind(this));
 
   // Log new lines to make room for the application.
   this._addNewLines();
@@ -71,7 +70,7 @@ Monitor.prototype._echo = function(socket) {
 
 // Middleware function for Socket.IO. It is passed each socket when
 // it connects and saves a reference.
-Monitor.prototype.middleware = function(socket, next) {
+Monitor.prototype._middleware = function(socket, next) {
   var self = this;
 
   this.sockets[socket.id] = {
