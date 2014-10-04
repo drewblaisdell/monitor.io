@@ -1,5 +1,8 @@
 // Module dependencies.
 var ansi = require('ansi');
+var keypress = require('keypress');
+
+keypress(process.stdin);
 
 // Module exports.
 module.exports = Monitor;
@@ -14,6 +17,8 @@ function Monitor(io, options) {
   options = options || {};
   this.testLatency = options.testLatency || false;
   this.timeBetweenEchoes = options.timeBetweenEchoes || 500;
+
+  this.scrollY = 0;
 
   this.ansi = ansi;
   this.cursor = ansi(process.stdout);
@@ -30,13 +35,23 @@ function Monitor(io, options) {
 
   // Show the cursor on exit.
   var self = this;
-  var exitHandler = function() {
+  var exitHandler = function(err) {
+    if (err) {
+      console.log(err.stack);
+    }
+
     self.cursor.show();
     process.exit();
   };
 
   process.on('exit', exitHandler);
   process.on('SIGINT', exitHandler);
+  process.on('uncaughtException', exitHandler);
+
+  // Capture and handle keypresses.
+  process.stdin.on('keypress', this._handleKeypress.bind(this));
+  process.stdin.setRawMode(true);
+  process.stdin.resume();
 
   // Run the application.
   setInterval(this._tick.bind(this), 1000);
@@ -61,9 +76,31 @@ Monitor.prototype._clear = function(line) {
   }
 };
 
+Monitor.prototype._getVisibleSockets = function() {
+  var socketIDs = Object.keys(this.sockets),
+    windowHeight = process.stdout.getWindowSize()[1];
+  
+  return (socketIDs.length > windowHeight - 3) ? windowHeight - 3 : socketIDs.length;
+};
+
 // Emits a timestamp to the given socket in order to measure latency.
 Monitor.prototype._echo = function(socket) {
   socket.emit('_echo', Date.now());
+};
+
+// Handle a stdin keypress.
+Monitor.prototype._handleKeypress = function(ch, key) {
+  if (ch === 'k') {
+    this._scroll(-1);
+    this._render();
+  } else if (ch === 'j') {
+    this._scroll(1);
+    this._render();
+  }
+
+  if (key && key.ctrl && key.name === 'c') {
+    process.exit();
+  }
 };
 
 // Middleware function for Socket.IO. It is passed each socket when
@@ -75,6 +112,14 @@ Monitor.prototype._middleware = function(socket, next) {
     socket: socket,
     latency: undefined
   };
+
+// TO REMOVE: dummy sockets
+  for (var i = 0; i < 10; i++) {
+    this.sockets[Math.random().toString()] = {
+      socket: socket,
+      latency: Math.floor(Math.random() * 600)
+    };
+  }
 
   if (this.testLatency) {
     socket.on('_echo', this._receiveEcho.bind(this, socket));
@@ -95,8 +140,7 @@ Monitor.prototype._receiveEcho = function(socket, message) {
   }, this.timeBetweenEchoes);
 };
 
-// Removes sockets that are flagged as disconnected from internal
-// list of sockets. 
+// Removes sockets that are flagged as disconnected from internal list of sockets.
 Monitor.prototype._removeDisconnectedSockets = function() {
   var socketIDs = Object.keys(this.sockets),
     current;
@@ -112,15 +156,32 @@ Monitor.prototype._removeDisconnectedSockets = function() {
 
 // Renders the current state of the application in the terminal.
 Monitor.prototype._render = function() {
-  var socketIDs = Object.keys(this.sockets);
+  var socketIDs = Object.keys(this.sockets),
+    windowHeight = process.stdout.getWindowSize()[1],
+    visibleSockets = (socketIDs.length > windowHeight - 3) ? windowHeight - 3 : socketIDs.length,
+    startingSocket = 0;
+
+  if (visibleSockets < socketIDs.length) {
+    startingSocket = this.scrollY;
+
+    if (this.scrollY + visibleSockets >= socketIDs.length) {
+      this.scrollY = socketIDs.length - visibleSockets;
+    }
+  }
 
   this._clear(1);
   this._resetCursor();
 
+  this._renderTitle();
+
   if (socketIDs.length === 0) {
     this.cursor.write('No sockets connected.');
   } else {
-    for (var i = 0; i < socketIDs.length; i++) {
+    for (var i = startingSocket; i < startingSocket + visibleSockets; i++) {
+      if (socketIDs[i] === undefined) {
+        break;
+      }
+
       this._renderSocket(socketIDs[i]);
     }
   }
@@ -133,9 +194,10 @@ Monitor.prototype._renderSocket = function(socketID) {
   current = this.sockets[socketID];
 
   if (current.socket.disconnected) {
-    this.cursor.write(current.socket.conn.remoteAddress);
+    this.cursor.bold().write(current.socket.conn.remoteAddress);
+    this.cursor.reset().write(' disconnected...');
   } else {
-    this.cursor.write(current.socket.conn.remoteAddress);
+    this.cursor.bold().write(current.socket.conn.remoteAddress).reset();
 
     if (current.latency) {
       this.cursor.write(' latency: ');
@@ -154,9 +216,35 @@ Monitor.prototype._renderSocket = function(socketID) {
   this.cursor.write('\n');
 };
 
+// Renders the title of the application.
+Monitor.prototype._renderTitle = function() {
+  var title = 'Monitor.IO',
+    exitText = '(Ctrl + C to exit)',
+    windowWidth = process.stdout.getWindowSize()[0],
+    whiteSpace = Array(windowWidth - title.length - exitText.length).join(' ');
+
+  this.cursor.bold().hex('#6349B6').write(title);
+
+  this.cursor.reset().write(whiteSpace);
+  this.cursor.hex('#6349B6').write(exitText);
+  this.cursor.reset().write('\n\n');
+};
+
 // Moves the cursor to the top left of the window.
 Monitor.prototype._resetCursor = function() {
   this.cursor.horizontalAbsolute(0).goto(1, 1).eraseLine().write('');
+};
+
+// Change the scroll position by the given number. Prevent scrolling past the
+// end of the list of sockets.
+Monitor.prototype._scroll = function(y) {
+  var visibleSockets = this._getVisibleSockets();
+
+  if (this.scrollY + y > -1) {
+    this.scrollY += y;
+  } else if (this.scrollY + y < visibleSockets) {
+    this.scrollY += y;
+  }
 };
 
 // Updates internal data, renders the application.
@@ -164,4 +252,3 @@ Monitor.prototype._tick = function() {
   this._removeDisconnectedSockets();
   this._render();
 };
-
