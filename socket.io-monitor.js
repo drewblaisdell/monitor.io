@@ -1,9 +1,7 @@
 // Module dependencies.
- 
 var ansi = require('ansi');
 
 // Module exports.
-
 module.exports = Monitor;
 
 // Monitor constructor.
