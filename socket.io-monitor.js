@@ -110,14 +110,16 @@ Monitor.prototype._middleware = function(socket, next) {
 
   this.sockets[socket.id] = {
     socket: socket,
-    latency: undefined
+    latency: undefined,
+    attachments: {}
   };
 
 // TO REMOVE: dummy sockets
   for (var i = 0; i < 10; i++) {
     this.sockets[Math.random().toString()] = {
       socket: socket,
-      latency: Math.floor(Math.random() * 600)
+      latency: Math.floor(Math.random() * 600),
+      attachments: { name: 'Alice' }
     };
   }
 
@@ -126,7 +128,26 @@ Monitor.prototype._middleware = function(socket, next) {
     this._echo(socket);
   }
 
+  socket.on('_attachment', this._receiveAttachment.bind(this, socket));
+
   next();
+};
+
+// Adds whitespace to the end of a string to give it the given width.
+Monitor.prototype._pad = function(str, width) {
+  while (str.length < width) {
+    str += ' ';
+  }
+
+  return str;
+};
+
+// Attaches data from a client socket to the socket.
+Monitor.prototype._receiveAttachment = function(socket, message) {
+  var name = message.name,
+    value = message.value;
+
+  this.sockets[socket.id].attachments[name] = value;
 };
 
 // Handles a return echo from a socket and issues a new echo.
@@ -197,7 +218,7 @@ Monitor.prototype._renderSocket = function(socketID) {
     this.cursor.bold().write(current.socket.conn.remoteAddress);
     this.cursor.reset().write(' disconnected...');
   } else {
-    this.cursor.bold().write(current.socket.conn.remoteAddress).reset();
+    this.cursor.bold().write(this._pad(current.socket.conn.remoteAddress, 15)).reset();
 
     if (current.latency) {
       this.cursor.write(' latency: ');
@@ -209,8 +230,14 @@ Monitor.prototype._renderSocket = function(socketID) {
         this.cursor.red();
       }
 
-      this.cursor.write(current.latency + 'ms');
+      this.cursor.write(this._pad(current.latency + 'ms', 6));
       this.cursor.reset();
+    }
+
+    var attachmentNames = Object.keys(current.attachments);
+
+    for (var i = 0; i < attachmentNames.length; i++) {
+      this.cursor.write(' '+ attachmentNames[i] + ': "'+ current.attachments[attachmentNames[i]].toString() +'"');
     }
   }
   this.cursor.write('\n');
@@ -240,10 +267,12 @@ Monitor.prototype._resetCursor = function() {
 Monitor.prototype._scroll = function(y) {
   var visibleSockets = this._getVisibleSockets();
 
-  if (this.scrollY + y > -1) {
+  if (this.scrollY + y > 0 && this.scrollY + y < visibleSockets) {
     this.scrollY += y;
-  } else if (this.scrollY + y < visibleSockets) {
-    this.scrollY += y;
+  }
+
+  if (this.scrollY < 0) {
+    process.exit();
   }
 };
 
