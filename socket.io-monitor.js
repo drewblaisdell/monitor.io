@@ -19,6 +19,7 @@ function Monitor(io, options) {
   this.timeBetweenEchoes = options.timeBetweenEchoes || 500;
 
   this.scrollY = 0;
+  this.selected = 0;
 
   this.ansi = ansi;
   this.cursor = ansi(process.stdout);
@@ -76,6 +77,11 @@ Monitor.prototype._clear = function(line) {
   }
 };
 
+// Disconnect the socket with the given ID.
+Monitor.prototype._disconnectSocket = function(id) {
+  this.sockets[id].socket.disconnect();
+};
+
 Monitor.prototype._getVisibleSockets = function() {
   var socketIDs = Object.keys(this.sockets),
     windowHeight = process.stdout.getWindowSize()[1];
@@ -90,12 +96,20 @@ Monitor.prototype._echo = function(socket) {
 
 // Handle a stdin keypress.
 Monitor.prototype._handleKeypress = function(ch, key) {
-  if (ch === 'k') {
-    this._scroll(-1);
-    this._render();
-  } else if (ch === 'j') {
-    this._scroll(1);
-    this._render();
+  switch (ch) {
+    case 'k':
+      // this._scroll(-1);
+      this._moveCursor(-1);
+      this._render();
+      break;
+    case 'j':
+      // this._scroll(1);
+      this._moveCursor(1);
+      this._render();
+      break;
+    case 'x':
+      this._disconnectSocket(Object.keys(this.sockets)[this.selected]);
+      break;
   }
 
   if (key && key.ctrl && key.name === 'c') {
@@ -114,14 +128,14 @@ Monitor.prototype._middleware = function(socket, next) {
     attachments: {}
   };
 
-// TO REMOVE: dummy sockets
-  for (var i = 0; i < 10; i++) {
-    this.sockets[Math.random().toString()] = {
-      socket: socket,
-      latency: Math.floor(Math.random() * 600),
-      attachments: { name: 'Alice' }
-    };
-  }
+// // TO REMOVE: dummy sockets
+//   for (var i = 0; i < 10; i++) {
+//     this.sockets[Math.random().toString()] = {
+//       socket: socket,
+//       latency: Math.floor(Math.random() * 600),
+//       attachments: { name: 'Alice' }
+//     };
+//   }
 
   if (this.testLatency) {
     socket.on('_echo', this._receiveEcho.bind(this, socket));
@@ -131,6 +145,19 @@ Monitor.prototype._middleware = function(socket, next) {
   socket.on('_attachment', this._receiveAttachment.bind(this, socket));
 
   next();
+};
+
+Monitor.prototype._moveCursor = function(y) {
+  var socketIDs = Object.keys(this.sockets),
+    socketCount = socketIDs.length;
+
+  if (this.selected + y < socketCount && this.selected + y > -1) {
+    this.selected += y;
+    
+    if (this.selected > this._getVisibleSockets() - 1 || this.selected < this.scrollY) {
+      this._scroll(y);
+    }
+  }
 };
 
 // Adds whitespace to the end of a string to give it the given width.
@@ -162,6 +189,8 @@ Monitor.prototype._receiveEcho = function(socket, message) {
 };
 
 // Removes sockets that are flagged as disconnected from internal list of sockets.
+// If the selected socket number is higher than the list of sockets, it is reset to
+// the last socket.
 Monitor.prototype._removeDisconnectedSockets = function() {
   var socketIDs = Object.keys(this.sockets),
     current;
@@ -172,6 +201,10 @@ Monitor.prototype._removeDisconnectedSockets = function() {
     if (current.socket.disconnected) {
       delete this.sockets[socketIDs[i]];
     }
+  }
+
+  if (this.selected > socketIDs.length - 1) {
+    this.selected = socketIDs.length - 1;
   }
 };
 
@@ -203,7 +236,11 @@ Monitor.prototype._render = function() {
         break;
       }
 
-      this._renderSocket(socketIDs[i]);
+      if (i === this.selected) {
+        this._renderSocket(socketIDs[i], true);
+      } else {
+        this._renderSocket(socketIDs[i], false);
+      }
     }
   }
 
@@ -211,14 +248,19 @@ Monitor.prototype._render = function() {
 };
 
 // Renders a single socket in the terminal.
-Monitor.prototype._renderSocket = function(socketID) {
+Monitor.prototype._renderSocket = function(socketID, selected) {
   current = this.sockets[socketID];
 
   if (current.socket.disconnected) {
     this.cursor.bold().write(current.socket.conn.remoteAddress);
     this.cursor.reset().write(' disconnected...');
   } else {
-    this.cursor.bold().write(this._pad(current.socket.conn.remoteAddress, 15)).reset();
+    if (selected) {
+      this.cursor.bold().write(this._pad('> '+ current.socket.conn.remoteAddress, 15)).reset();
+    } else {
+      this.cursor.bold().write(this._pad(current.socket.conn.remoteAddress, 15)).reset();
+    }
+
 
     if (current.latency) {
       this.cursor.write(' latency: ');
@@ -267,7 +309,7 @@ Monitor.prototype._resetCursor = function() {
 Monitor.prototype._scroll = function(y) {
   var visibleSockets = this._getVisibleSockets();
 
-  if (this.scrollY + y > 0 && this.scrollY + y < visibleSockets) {
+  if (this.scrollY + y > -1 && this.scrollY + y < visibleSockets) {
     this.scrollY += y;
   }
 
