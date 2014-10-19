@@ -15,7 +15,15 @@ var monitor = require('./socket.io-monitor');
 app.use(express.static(__dirname));
 
 io.on('connection', function(socket) {
-  // console.log(socket);
+  socket.monitor.name = 'Henry';
+  setInterval(function() {
+    socket.monitor.rando = Math.floor(Math.random() * 1000);
+  }, 1000);
+
+  setTimeout(function() {
+    socket.monitor.hairpin = { a: "B" };
+    socket.monitor.algebra = 'an apple a day keeps the doctor away';
+  }, 3000);
 });
 
 io.use(monitor());

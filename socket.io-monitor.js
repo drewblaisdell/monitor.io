@@ -18,6 +18,7 @@ function Monitor(options) {
   this.testLatency = options.testLatency || false;
   this.timeBetweenEchoes = options.timeBetweenEchoes || 500;
 
+  this.scrollX = 0;
   this.scrollY = 0;
   this.selected = 0;
 
@@ -96,6 +97,14 @@ Monitor.prototype._echo = function(socket) {
 // Handle a stdin keypress.
 Monitor.prototype._handleKeypress = function(ch, key) {
   switch (ch) {
+    case 'h':
+      this._scrollX(-1);
+      this._render();
+      break;
+    case 'l':
+      this._scrollX(1);
+      this._render();
+      break;
     case 'k':
       // this._scroll(-1);
       this._moveCursor(-1);
@@ -133,7 +142,7 @@ Monitor.prototype._moveCursor = function(y) {
     this.selected += y;
     
     if (this.selected > this._getVisibleSockets() - 1 || this.selected < this.scrollY) {
-      this._scroll(y);
+      this._scrollY(y);
     }
   }
 };
@@ -219,7 +228,8 @@ Monitor.prototype._render = function() {
 
 // Renders a single socket in the terminal.
 Monitor.prototype._renderSocket = function(socketID, selected) {
-  socket = this.sockets[socketID];
+  var socket = this.sockets[socketID],
+    windowWidth = process.stdout.getWindowSize()[0];
 
   if (socket.disconnected) {
     this.cursor.bold().write(socket.conn.remoteAddress);
@@ -230,7 +240,6 @@ Monitor.prototype._renderSocket = function(socketID, selected) {
     } else {
       this.cursor.bold().write(this._pad(socket.conn.remoteAddress, 15)).reset();
     }
-
 
     if (socket.latency) {
       this.cursor.write(' latency: ');
@@ -246,11 +255,27 @@ Monitor.prototype._renderSocket = function(socketID, selected) {
       this.cursor.reset();
     }
 
-    var attach = Object.keys(socket.monitor);
+    var attach = Object.keys(socket.monitor),
+      buffer = '';
 
-    for (var i = 0; i < attach.length; i++) {
-      this.cursor.write(' '+ attach[i] + ': "'+ socket.monitor[attach[i]].toString() +'"');
+    for (var i = this.scrollX; i < attach.length; i++) {
+      buffer += ' '+ attach[i] + ': ';
+      if (typeof socket.monitor[attach[i]] === 'number') {
+        buffer += socket.monitor[attach[i]].toString();
+      } else {
+        buffer += '"'+ socket.monitor[attach[i]].toString() +'"';
+      }
+
+      if (i < attach.length - 1) {
+        buffer += ',';
+      }
     }
+
+    if (buffer.length > windowWidth - 15) {
+      buffer = buffer.substring(0, windowWidth - 18) + '...';
+    }
+
+    this.cursor.write(buffer);
   }
   this.cursor.write('\n');
 };
@@ -274,9 +299,28 @@ Monitor.prototype._resetCursor = function() {
   this.cursor.horizontalAbsolute(0).goto(1, 1).eraseLine().write('');
 };
 
+Monitor.prototype._scrollX = function(x) {
+  var socketIDs = Object.keys(this.sockets),
+    socket,
+    monitors,
+    maxX = 0;
+
+  for (var i = 0; i < socketIDs.length; i++) {
+    socket = this.sockets[socketIDs[i]];
+
+    monitors = Object.keys(socket.monitor).length;
+
+    maxX = (monitors > maxX) ? monitors : maxX;
+  }
+
+  if (this.scrollX + x < maxX && this.scrollX + x >= 0) {
+    this.scrollX += x;
+  }
+};
+
 // Change the scroll position by the given number. Prevent scrolling past the
 // end of the list of sockets.
-Monitor.prototype._scroll = function(y) {
+Monitor.prototype._scrollY = function(y) {
   var visibleSockets = this._getVisibleSockets();
 
   if (this.scrollY + y > -1 && this.scrollY + y < visibleSockets) {
