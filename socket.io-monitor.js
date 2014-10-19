@@ -9,9 +9,9 @@ module.exports = Monitor;
 
 // Monitor constructor.
 // Accepts an instance of Socket.IO
-function Monitor(io, options) {
+function Monitor(options) {
   if (!(this instanceof Monitor)) {
-    return new Monitor(io, options);
+    return new Monitor(options);
   }
 
   options = options || {};
@@ -24,9 +24,6 @@ function Monitor(io, options) {
   this.ansi = ansi;
   this.cursor = ansi(process.stdout);
   this.sockets = {};
-
-  // Tell Socket.IO to use Monitor.IO.
-  io.use(this._middleware.bind(this));
 
   // Log new lines to make room for the application.
   this._addNewLines();
@@ -56,6 +53,8 @@ function Monitor(io, options) {
 
   // Run the application.
   setInterval(this._tick.bind(this), 1000);
+
+  return this._middleware.bind(this);
 };
 
 // Log as many new lines as the height of the window.
@@ -79,7 +78,7 @@ Monitor.prototype._clear = function(line) {
 
 // Disconnect the socket with the given ID.
 Monitor.prototype._disconnectSocket = function(id) {
-  this.sockets[id].socket.disconnect();
+  this.sockets[id].disconnect();
 };
 
 Monitor.prototype._getVisibleSockets = function() {
@@ -120,29 +119,8 @@ Monitor.prototype._handleKeypress = function(ch, key) {
 // Middleware function for Socket.IO. It is passed each socket when
 // it connects and saves a reference.
 Monitor.prototype._middleware = function(socket, next) {
-  var self = this;
-
-  this.sockets[socket.id] = {
-    socket: socket,
-    latency: undefined,
-    attachments: {}
-  };
-
-// // TO REMOVE: dummy sockets
-//   for (var i = 0; i < 10; i++) {
-//     this.sockets[Math.random().toString()] = {
-//       socket: socket,
-//       latency: Math.floor(Math.random() * 600),
-//       attachments: { name: 'Alice' }
-//     };
-//   }
-
-  if (this.testLatency) {
-    socket.on('_echo', this._receiveEcho.bind(this, socket));
-    this._echo(socket);
-  }
-
-  socket.on('_attachment', this._receiveAttachment.bind(this, socket));
+  socket.monitor = {};
+  this.sockets[socket.id] = socket;
 
   next();
 };
@@ -169,14 +147,6 @@ Monitor.prototype._pad = function(str, width) {
   return str;
 };
 
-// Attaches data from a client socket to the socket.
-Monitor.prototype._receiveAttachment = function(socket, message) {
-  var name = message.name,
-    value = message.value;
-
-  this.sockets[socket.id].attachments[name] = value;
-};
-
 // Handles a return echo from a socket and issues a new echo.
 Monitor.prototype._receiveEcho = function(socket, message) {
   var latency = Date.now() - message;
@@ -198,7 +168,7 @@ Monitor.prototype._removeDisconnectedSockets = function() {
   for (var i = 0; i < socketIDs.length; i++) {
     current = this.sockets[socketIDs[i]];
 
-    if (current.socket.disconnected) {
+    if (current.disconnected) {
       delete this.sockets[socketIDs[i]];
     }
   }
@@ -249,37 +219,37 @@ Monitor.prototype._render = function() {
 
 // Renders a single socket in the terminal.
 Monitor.prototype._renderSocket = function(socketID, selected) {
-  current = this.sockets[socketID];
+  socket = this.sockets[socketID];
 
-  if (current.socket.disconnected) {
-    this.cursor.bold().write(current.socket.conn.remoteAddress);
+  if (socket.disconnected) {
+    this.cursor.bold().write(socket.conn.remoteAddress);
     this.cursor.reset().write(' disconnected...');
   } else {
     if (selected) {
-      this.cursor.bold().write(this._pad('> '+ current.socket.conn.remoteAddress, 15)).reset();
+      this.cursor.bold().write(this._pad('> '+ socket.conn.remoteAddress, 15)).reset();
     } else {
-      this.cursor.bold().write(this._pad(current.socket.conn.remoteAddress, 15)).reset();
+      this.cursor.bold().write(this._pad(socket.conn.remoteAddress, 15)).reset();
     }
 
 
-    if (current.latency) {
+    if (socket.latency) {
       this.cursor.write(' latency: ');
-      if (current.latency < 100) {
+      if (socket.latency < 100) {
         this.cursor.green();
-      } else if (current.latency < 500) {
+      } else if (socket.latency < 500) {
         this.cursor.hex('#FFAA00');
       } else {
         this.cursor.red();
       }
 
-      this.cursor.write(this._pad(current.latency + 'ms', 6));
+      this.cursor.write(this._pad(socket.latency + 'ms', 6));
       this.cursor.reset();
     }
 
-    var attachmentNames = Object.keys(current.attachments);
+    var attach = Object.keys(socket.monitor);
 
-    for (var i = 0; i < attachmentNames.length; i++) {
-      this.cursor.write(' '+ attachmentNames[i] + ': "'+ current.attachments[attachmentNames[i]].toString() +'"');
+    for (var i = 0; i < attach.length; i++) {
+      this.cursor.write(' '+ attach[i] + ': "'+ socket.monitor[attach[i]].toString() +'"');
     }
   }
   this.cursor.write('\n');

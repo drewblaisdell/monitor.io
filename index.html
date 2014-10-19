@@ -20,24 +20,9 @@
     
     var myLatency = Math.floor(Math.random() * 1000);
 
-    socket.emit('_attachment', {
-      name: 'name',
-      value: 'Bob'
-    });
-
-    socket.emit('_attachment', {
-      name: 'name',
-      value: 'Bob'
-    });
-
     socket.on('_echo', function(message) {
       setTimeout(function() {
         socket.emit('_echo', message);
-
-        socket.emit('_attachment', {
-          name: 'random number',
-          value: Math.random()
-        });
 
       }, myLatency + Math.floor(Math.random() * 30));
     });
