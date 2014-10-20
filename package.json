@@ -7,6 +7,7 @@
     "express": "^4.9.0",
     "socket.io": "^1.1.0",
     "ansi": "^0.3.0",
-    "keypress": "^0.2.1"
+    "keypress": "^0.2.1",
+    "telnet": "0.0.1"
   }
 }

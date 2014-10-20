@@ -1,35 +1,80 @@
 // Module dependencies.
 var ansi = require('ansi');
 var keypress = require('keypress');
-var net = require('net');
-
-keypress(process.stdin);
+var telnet = require('telnet');
 
 // Module exports.
 module.exports = Monitor;
 
 // Monitor constructor.
-// Accepts an instance of Socket.IO
 function Monitor(options) {
   if (!(this instanceof Monitor)) {
     return new Monitor(options);
   }
+  
+  var self = this;
 
-  options = options || {};
+  this.options = options || {};
+  this.options.width = this.options.width || 100;
+  this.options.height = this.options.height || 50;
 
   this.scrollX = 0;
   this.scrollY = 0;
   this.selected = 0;
 
-  this.ansi = ansi;
-  this.cursor = ansi(process.stdout);
   this.sockets = {};
 
-  // Log new lines to make room for the application.
-  this._addNewLines();
+  this.connectedSock = false;
 
-  // Hide the cursor.
-  this.cursor.hide();
+  this.ansi = ansi;
+
+  if (options.remote) {
+    // start a server
+    telnet.createServer(function(client) {
+      this.connectedSock = client;
+
+      // make unicode characters work properly
+      client.do.transmit_binary()
+
+      // make the client emit the window size
+      client.do.window_size()
+
+      // force the client into character mode
+      client.do.suppress_go_ahead()
+      client.will.suppress_go_ahead()
+      client.will.echo()
+
+      self.cursor = ansi(client, { enabled: true });   
+
+      client.on('window size', function(e) {
+        options.width = e.width;
+        options.height = e.height;
+      });
+
+      keypress(client);
+      client.on('keypress', self._handleKeypress.bind(self));
+
+      self._addNewLines();
+      self._run();
+    }).listen(1337);
+  } else {
+    this.cursor = ansi(process.stdout);
+
+    keypress(process.stdin);
+
+    // Capture and handle keypresses.
+    process.stdin.on('keypress', this._handleKeypress.bind(this));
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+
+    this._run();
+    // Log new lines to make room for the application.
+    this._addNewLines();
+
+    // Hide the cursor.
+    this.cursor.hide();
+  }
+
 
   // Show the cursor on exit.
   var self = this;
@@ -46,28 +91,13 @@ function Monitor(options) {
   process.on('SIGINT', exitHandler);
   process.on('uncaughtException', exitHandler);
 
-  // Capture and handle keypresses.
-  process.stdin.on('keypress', this._handleKeypress.bind(this));
-  process.stdin.setRawMode(true);
-  process.stdin.resume();
-
-  // Run the application.
-  setInterval(this._tick.bind(this), 1000);
-
-  // start a server
-  var self = this;
-  net.createServer(function(socket) {
-    self.cursor = ansi(socket, { enabled: true });
-    socket.pipe(process.stdin);
-  }).listen(1337);
-
   return this._middleware.bind(this);
 };
 
 // Log as many new lines as the height of the window.
 Monitor.prototype._addNewLines = function() {
   this.cursor
-    .write(Array.apply(null, Array(process.stdout.getWindowSize()[1])).map(function() {
+    .write(Array.apply(null, Array(this._getWindowSize().height)).map(function() {
       return '\n';
     }).join(''))
     .eraseData()
@@ -76,7 +106,7 @@ Monitor.prototype._addNewLines = function() {
 
 // Clear the console, starting with the given line.
 Monitor.prototype._clear = function(line) {
-  var windowHeight = process.stdout.getWindowSize()[1];
+  var windowHeight = this._getWindowSize().height;
 
   for (var i = line; i <= windowHeight; i++) {
     this.cursor.goto(1, i).eraseLine().write('');
@@ -88,9 +118,26 @@ Monitor.prototype._disconnectSocket = function(id) {
   this.sockets[id].disconnect();
 };
 
+Monitor.prototype._getWindowSize = function() {
+  var windowSize, width, height;
+  if (this.options.remote || process.stdout.getWindowSize === undefined) {
+    width = this.options.width;
+    height = this.options.height;
+  } else if (typeof process.stdout.getWindowSize === 'function') {
+    windowSize = process.stdout.getWindowSize();
+    width = windowSize[0];
+    height = windowSize[1];
+  }
+
+  return {
+    width: width,
+    height: height
+  };
+};
+
 Monitor.prototype._getVisibleSockets = function() {
   var socketIDs = Object.keys(this.sockets),
-    windowHeight = process.stdout.getWindowSize()[1];
+    windowHeight = this._getWindowSize().height;
   
   return (socketIDs.length > windowHeight - 3) ? windowHeight - 3 : socketIDs.length;
 };
@@ -122,7 +169,11 @@ Monitor.prototype._handleKeypress = function(ch, key) {
   }
 
   if (key && key.ctrl && key.name === 'c') {
-    process.exit();
+    if (this.connectedSock) {
+      this.connectedSock.disconnect();
+    } else {
+      process.exit();
+    }
   }
 };
 
@@ -173,14 +224,14 @@ Monitor.prototype._removeDisconnectedSockets = function() {
   }
 
   if (this.selected > socketIDs.length - 1) {
-    this.selected = socketIDs.length - 1;
+    this.selected = Math.max(socketIDs.length - 1, 0);
   }
 };
 
 // Renders the current state of the application in the terminal.
 Monitor.prototype._render = function() {
   var socketIDs = Object.keys(this.sockets),
-    windowHeight = process.stdout.getWindowSize()[1],
+    windowHeight = this._getWindowSize().height,
     visibleSockets = (socketIDs.length > windowHeight - 3) ? windowHeight - 3 : socketIDs.length,
     startingSocket = 0;
 
@@ -219,7 +270,7 @@ Monitor.prototype._render = function() {
 // Renders a single socket in the terminal.
 Monitor.prototype._renderSocket = function(socketID, selected) {
   var socket = this.sockets[socketID],
-    windowWidth = process.stdout.getWindowSize()[0];
+    windowWidth = this._getWindowSize().width;
 
   if (socket.disconnected) {
     this.cursor.bold().write(socket.conn.remoteAddress);
@@ -274,7 +325,7 @@ Monitor.prototype._renderSocket = function(socketID, selected) {
 Monitor.prototype._renderTitle = function() {
   var title = 'Monitor.IO',
     exitText = '(Ctrl + C to exit)',
-    windowWidth = process.stdout.getWindowSize()[0],
+    windowWidth = this._getWindowSize().width,
     whiteSpace = Array(windowWidth - title.length - exitText.length).join(' ');
 
   this.cursor.bold().hex('#6349B6').write(title);
@@ -287,6 +338,11 @@ Monitor.prototype._renderTitle = function() {
 // Moves the cursor to the top left of the window.
 Monitor.prototype._resetCursor = function() {
   this.cursor.horizontalAbsolute(0).goto(1, 1).eraseLine().write('');
+};
+
+// Run.
+Monitor.prototype._run = function() {
+  setInterval(this._tick.bind(this), 1000);
 };
 
 Monitor.prototype._scrollX = function(x) {
