@@ -1,6 +1,7 @@
 // Module dependencies.
 var ansi = require('ansi');
 var keypress = require('keypress');
+var net = require('net');
 
 keypress(process.stdin);
 
@@ -15,8 +16,6 @@ function Monitor(options) {
   }
 
   options = options || {};
-  this.testLatency = options.testLatency || false;
-  this.timeBetweenEchoes = options.timeBetweenEchoes || 500;
 
   this.scrollX = 0;
   this.scrollY = 0;
@@ -55,6 +54,13 @@ function Monitor(options) {
   // Run the application.
   setInterval(this._tick.bind(this), 1000);
 
+  // start a server
+  var self = this;
+  net.createServer(function(socket) {
+    self.cursor = ansi(socket, { enabled: true });
+    socket.pipe(process.stdin);
+  }).listen(1337);
+
   return this._middleware.bind(this);
 };
 
@@ -87,11 +93,6 @@ Monitor.prototype._getVisibleSockets = function() {
     windowHeight = process.stdout.getWindowSize()[1];
   
   return (socketIDs.length > windowHeight - 3) ? windowHeight - 3 : socketIDs.length;
-};
-
-// Emits a timestamp to the given socket in order to measure latency.
-Monitor.prototype._echo = function(socket) {
-  socket.emit('_echo', Date.now());
 };
 
 // Handle a stdin keypress.
@@ -154,17 +155,6 @@ Monitor.prototype._pad = function(str, width) {
   }
 
   return str;
-};
-
-// Handles a return echo from a socket and issues a new echo.
-Monitor.prototype._receiveEcho = function(socket, message) {
-  var latency = Date.now() - message;
-  this.sockets[socket.id].latency = latency;
-
-  var self = this;
-  setTimeout(function() {
-    self._echo(socket);
-  }, this.timeBetweenEchoes);
 };
 
 // Removes sockets that are flagged as disconnected from internal list of sockets.
