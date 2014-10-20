@@ -26,12 +26,14 @@ function Monitor(options) {
 
   this.connectedSock = false;
 
+  this.loop = false;
+
   this.ansi = ansi;
 
   if (options.remote) {
     // start a server
     telnet.createServer(function(client) {
-      this.connectedSock = client;
+      self.connectedSock = client;
 
       // make unicode characters work properly
       client.do.transmit_binary()
@@ -170,7 +172,8 @@ Monitor.prototype._handleKeypress = function(ch, key) {
 
   if (key && key.ctrl && key.name === 'c') {
     if (this.connectedSock) {
-      this.connectedSock.disconnect();
+      this._stop();
+      this.connectedSock.destroy();
     } else {
       process.exit();
     }
@@ -342,7 +345,7 @@ Monitor.prototype._resetCursor = function() {
 
 // Run.
 Monitor.prototype._run = function() {
-  setInterval(this._tick.bind(this), 1000);
+  this.loop = setInterval(this._tick.bind(this), 1000);
 };
 
 Monitor.prototype._scrollX = function(x) {
@@ -376,6 +379,11 @@ Monitor.prototype._scrollY = function(y) {
   if (this.scrollY < 0) {
     process.exit();
   }
+};
+
+// Stops ticking
+Monitor.prototype._stop = function() {
+  clearInterval(this.loop);
 };
 
 // Updates internal data, renders the application.
