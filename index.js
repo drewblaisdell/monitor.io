@@ -26,7 +26,7 @@ io.on('connection', function(socket) {
   }, 3000);
 });
 
-io.use(monitor({ remote: true }));
+io.use(monitor({ remote: false }));
 
 http.listen(3000, function() {
   console.log("APP STARTED");

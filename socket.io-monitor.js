@@ -17,6 +17,7 @@ function Monitor(options) {
   this.options = options || {};
   this.options.width = this.options.width || 100;
   this.options.height = this.options.height || 50;
+  this.options.port = this.options.port || 1337;
 
   this.scrollX = 0;
   this.scrollY = 0;
@@ -58,7 +59,7 @@ function Monitor(options) {
 
       self._addNewLines();
       self._run();
-    }).listen(1337);
+    }).listen(this.options.port);
   } else {
     this.cursor = ansi(process.stdout);
 
@@ -76,7 +77,6 @@ function Monitor(options) {
     // Hide the cursor.
     this.cursor.hide();
   }
-
 
   // Show the cursor on exit.
   var self = this;
