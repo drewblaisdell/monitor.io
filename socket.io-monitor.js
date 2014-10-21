@@ -28,6 +28,7 @@ function Monitor(options) {
   this.connectedSock = false;
 
   this.loop = false;
+  this.running = false;
 
   this.ansi = ansi;
 
@@ -55,7 +56,10 @@ function Monitor(options) {
       });
 
       keypress(client);
+
       client.on('keypress', self._handleKeypress.bind(self));
+
+      client.on('authentication', console.log);
 
       self._addNewLines();
       self._run();
@@ -76,23 +80,22 @@ function Monitor(options) {
 
     // Hide the cursor.
     this.cursor.hide();
+
+    // Show the cursor on exit.
+    var exitHandler = function(err) {
+      if (err) {
+        console.log(err.stack);
+      }
+
+      self.cursor.show();
+      self.cursor.write('\n');
+      process.exit();
+    };
+
+    process.on('exit', exitHandler);
+    process.on('SIGINT', exitHandler);
+    process.on('uncaughtException', exitHandler);
   }
-
-  // Show the cursor on exit.
-  var self = this;
-  var exitHandler = function(err) {
-    if (err) {
-      console.log(err.stack);
-    }
-
-    self.cursor.show();
-    self.cursor.write('\n');
-    process.exit();
-  };
-
-  process.on('exit', exitHandler);
-  process.on('SIGINT', exitHandler);
-  process.on('uncaughtException', exitHandler);
 
   return this._middleware.bind(this);
 };
@@ -174,6 +177,7 @@ Monitor.prototype._handleKeypress = function(ch, key) {
   if (key && key.ctrl && key.name === 'c') {
     if (this.connectedSock) {
       this._stop();
+      this.cursor.show();
       this.connectedSock.destroy();
     } else {
       process.exit();
@@ -184,10 +188,21 @@ Monitor.prototype._handleKeypress = function(ch, key) {
 // Middleware function for Socket.IO. It is passed each socket when
 // it connects and saves a reference.
 Monitor.prototype._middleware = function(socket, next) {
-  socket.monitor = {};
+  socket._monitor = {};
+
+  socket.monitor = this._monitorSetter.bind(this, socket);
+
   this.sockets[socket.id] = socket;
 
   next();
+};
+
+Monitor.prototype._monitorSetter = function(socket, name, value) {
+  socket._monitor[name] = value;
+
+  if (this.running) {
+    this._render();
+  }
 };
 
 Monitor.prototype._moveCursor = function(y) {
@@ -300,15 +315,15 @@ Monitor.prototype._renderSocket = function(socketID, selected) {
       this.cursor.reset();
     }
 
-    var attach = Object.keys(socket.monitor),
+    var attach = Object.keys(socket._monitor),
       buffer = '';
 
     for (var i = this.scrollX; i < attach.length; i++) {
       buffer += ' '+ attach[i] + ': ';
-      if (typeof socket.monitor[attach[i]] === 'number') {
-        buffer += socket.monitor[attach[i]].toString();
+      if (typeof socket._monitor[attach[i]] === 'number') {
+        buffer += socket._monitor[attach[i]].toString();
       } else {
-        buffer += '"'+ socket.monitor[attach[i]].toString() +'"';
+        buffer += '"'+ socket._monitor[attach[i]].toString() +'"';
       }
 
       if (i < attach.length - 1) {
@@ -347,6 +362,7 @@ Monitor.prototype._resetCursor = function() {
 // Run.
 Monitor.prototype._run = function() {
   this.loop = setInterval(this._tick.bind(this), 1000);
+  this.running = true;
 };
 
 Monitor.prototype._scrollX = function(x) {
@@ -358,7 +374,7 @@ Monitor.prototype._scrollX = function(x) {
   for (var i = 0; i < socketIDs.length; i++) {
     socket = this.sockets[socketIDs[i]];
 
-    monitors = Object.keys(socket.monitor).length;
+    monitors = Object.keys(socket._monitor).length;
 
     maxX = (monitors > maxX) ? monitors : maxX;
   }
@@ -385,10 +401,11 @@ Monitor.prototype._scrollY = function(y) {
 // Stops ticking
 Monitor.prototype._stop = function() {
   clearInterval(this.loop);
+  this.running = false;
 };
 
 // Updates internal data, renders the application.
 Monitor.prototype._tick = function() {
   this._removeDisconnectedSockets();
-  this._render();
+  // this._render();
 };
