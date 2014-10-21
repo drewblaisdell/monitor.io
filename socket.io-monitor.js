@@ -86,6 +86,7 @@ function Monitor(options) {
     }
 
     self.cursor.show();
+    self.cursor.write('\n');
     process.exit();
   };
 
