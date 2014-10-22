@@ -30,6 +30,17 @@ function Monitor(options) {
   this.loop = false;
   this.running = false;
 
+  // set the initial dirty bit to true
+  this.dirty = {
+    title: true,
+    emit: [ null, true, true ]
+  };
+
+  // emit mode: 0 is off, 1 is name, 2 is value
+  this.emitBuffer = [ null, '', '' ];
+  this.emitMode = 0;
+  this.emitSocket = false;
+
   this.ansi = ansi;
 
   if (options.remote) {
@@ -51,18 +62,21 @@ function Monitor(options) {
       self.cursor = ansi(client, { enabled: true });   
 
       client.on('window size', function(e) {
-        options.width = e.width;
-        options.height = e.height;
+        if (e.width && e.height) {
+          self.options.width = e.width;
+          self.options.height = e.height;
+          self.dirty.title = true;
+          self._render();
+        }
       });
 
       keypress(client);
 
       client.on('keypress', self._handleKeypress.bind(self));
 
-      client.on('authentication', console.log);
-
       self._addNewLines();
       self._run();
+      self._render();
     }).listen(this.options.port);
   } else {
     this.cursor = ansi(process.stdout);
@@ -87,6 +101,7 @@ function Monitor(options) {
         console.log(err.stack);
       }
 
+      self._stop();
       self.cursor.show();
       self.cursor.write('\n');
       process.exit();
@@ -150,7 +165,38 @@ Monitor.prototype._getVisibleSockets = function() {
 
 // Handle a stdin keypress.
 Monitor.prototype._handleKeypress = function(ch, key) {
+  // Exit on ctrl + c
+  if (key && key.ctrl && key.name === 'c') {
+    this._resetEmitMode();
+
+    if (this.connectedSock) {
+      this._stop();
+      this.cursor.show();
+      this.connectedSock.destroy();
+    } else {
+      process.exit();
+    }
+  }
+
+  if (this.emitMode > 0) {
+    if (key && key.name === 'return') {
+      this._switchEmitMode(this.emitMode + 1);
+    } else if (key && key.name === 'backspace') {
+      this.emitBuffer[this.emitMode] = this.emitBuffer[this.emitMode].substring(0, this.emitBuffer[this.emitMode].length - 1);
+      this._renderEmit();
+    } else {
+      this.cursor.write(ch);
+      this.emitBuffer[this.emitMode] += ch;
+    }
+    return;
+  }
+
   switch (ch) {
+    case 'e':
+      if (this.emitMode === 0) {
+        this._switchEmitMode(1);
+      }
+      break;
     case 'h':
       this._scrollX(-1);
       this._render();
@@ -172,16 +218,6 @@ Monitor.prototype._handleKeypress = function(ch, key) {
     case 'x':
       this._disconnectSocket(Object.keys(this.sockets)[this.selected]);
       break;
-  }
-
-  if (key && key.ctrl && key.name === 'c') {
-    if (this.connectedSock) {
-      this._stop();
-      this.cursor.show();
-      this.connectedSock.destroy();
-    } else {
-      process.exit();
-    }
   }
 };
 
@@ -249,6 +285,23 @@ Monitor.prototype._removeDisconnectedSockets = function() {
 
 // Renders the current state of the application in the terminal.
 Monitor.prototype._render = function() {
+  if (this.dirty.title) {
+    this._renderTitle();
+    this.dirty.title = false;
+  }
+
+  if (this.emitMode < 1) {
+    this._renderBody();
+  } else {
+    if (this.dirty.emit[this.emitMode]) {
+      this._renderEmit();
+      this.dirty.emit[this.emitMode] = false;
+    }
+  }
+};
+
+// Renders the body.
+Monitor.prototype._renderBody = function() {
   var socketIDs = Object.keys(this.sockets),
     windowHeight = this._getWindowSize().height,
     visibleSockets = (socketIDs.length > windowHeight - 3) ? windowHeight - 3 : socketIDs.length,
@@ -262,10 +315,8 @@ Monitor.prototype._render = function() {
     }
   }
 
-  this._clear(1);
-  this._resetCursor();
-
-  this._renderTitle();
+  this._clear(3);
+  this._resetCursor(3);
 
   if (socketIDs.length === 0) {
     this.cursor.write('No sockets connected.');
@@ -276,9 +327,9 @@ Monitor.prototype._render = function() {
       }
 
       if (i === this.selected) {
-        this._renderSocket(socketIDs[i], true);
+        this._renderSocket(this.sockets[socketIDs[i]], true);
       } else {
-        this._renderSocket(socketIDs[i], false);
+        this._renderSocket(this.sockets[socketIDs[i]], false);
       }
     }
   }
@@ -286,10 +337,24 @@ Monitor.prototype._render = function() {
   this.cursor.hide();
 };
 
+// Renders the current stage of emit mode.
+Monitor.prototype._renderEmit = function() {
+  if (this.emitMode > 0){
+    this._clear(3);
+    this._resetCursor(3);
+    this._renderSocket(this.emitSocket, false);
+    this.cursor.write('\nEvent name: ' + this.emitBuffer[1]);
+    this.cursor.show();
+  }
+
+  if (this.emitMode > 1) {
+    this.cursor.write('\nEvent data (JSON): ' + this.emitBuffer[2]);
+  }
+};
+
 // Renders a single socket in the terminal.
-Monitor.prototype._renderSocket = function(socketID, selected) {
-  var socket = this.sockets[socketID],
-    windowWidth = this._getWindowSize().width;
+Monitor.prototype._renderSocket = function(socket, selected) {
+  var windowWidth = this._getWindowSize().width;
 
   if (socket.disconnected) {
     this.cursor.bold().write(socket.conn.remoteAddress);
@@ -347,6 +412,9 @@ Monitor.prototype._renderTitle = function() {
     windowWidth = this._getWindowSize().width,
     whiteSpace = Array(windowWidth - title.length - exitText.length).join(' ');
 
+  this._clear(1);
+  this._resetCursor(1);
+
   this.cursor.bold().hex('#6349B6').write(title);
 
   this.cursor.reset().write(whiteSpace);
@@ -354,9 +422,16 @@ Monitor.prototype._renderTitle = function() {
   this.cursor.reset().write('\n\n');
 };
 
-// Moves the cursor to the top left of the window.
-Monitor.prototype._resetCursor = function() {
-  this.cursor.horizontalAbsolute(0).goto(1, 1).eraseLine().write('');
+// Moves the cursor to character 1 on line y.
+Monitor.prototype._resetCursor = function(y) {
+  this.cursor.horizontalAbsolute(0).goto(1, y).eraseLine().write('');
+};
+
+// Reset's emit mode's stage, buffer, and dirty bits.
+Monitor.prototype._resetEmitMode = function() {
+  this.emitMode = 0;
+  this.emitBuffer = [null, '', ''];
+  this.dirty.emit = [ null, true, true ];
 };
 
 // Run.
@@ -398,14 +473,24 @@ Monitor.prototype._scrollY = function(y) {
   }
 };
 
+// Start emit mode with the given socket
+Monitor.prototype._switchEmitMode = function(mode) {
+  this.emitMode = mode;
+
+  if (mode === 1) {
+    this.emitSocket = this.sockets[Object.keys(this.sockets)[this.selected]];
+  }
+  
+  this._render();
+};
+
 // Stops ticking
 Monitor.prototype._stop = function() {
   clearInterval(this.loop);
   this.running = false;
 };
 
-// Updates internal data, renders the application.
+// Updates internal data.
 Monitor.prototype._tick = function() {
   this._removeDisconnectedSockets();
-  // this._render();
 };
