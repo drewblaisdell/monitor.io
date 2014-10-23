@@ -80,6 +80,8 @@ function Monitor(options) {
       self._run();
       self._render();
     }).listen(this.options.port);
+    
+    console.log('Monitor.IO server started on '+ this.options.port);
   } else {
     // output to the current stdout
     this.cursor = ansi(process.stdout);
@@ -400,20 +402,6 @@ Monitor.prototype._renderSocket = function(socket, selected) {
       this.cursor.bold().write(this._pad('> '+ socket.conn.remoteAddress, 15)).reset();
     } else {
       this.cursor.bold().write(this._pad(socket.conn.remoteAddress, 15)).reset();
-    }
-
-    if (socket.latency) {
-      this.cursor.write(' latency: ');
-      if (socket.latency < 100) {
-        this.cursor.green();
-      } else if (socket.latency < 500) {
-        this.cursor.hex('#FFAA00');
-      } else {
-        this.cursor.red();
-      }
-
-      this.cursor.write(this._pad(socket.latency + 'ms', 6));
-      this.cursor.reset();
     }
 
     var attach = Object.keys(socket._monitor),
