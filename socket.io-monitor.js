@@ -443,6 +443,9 @@ Monitor.prototype._renderTitle = function() {
 
   this.cursor.reset().write(whiteSpace);
   this.cursor.hex('#6349B6').write(exitText);
+  // this.cursor.reset().write('\n\n');
+  this.cursor.reset().write('\n');
+  this.cursor.write('[b]roadcast, [e]mit to socket, [x] disconnect socket, [hjkl] scroll');
   this.cursor.reset().write('\n\n');
 };
 
