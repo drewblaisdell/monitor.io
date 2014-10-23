@@ -3,6 +3,14 @@ var ansi = require('ansi');
 var keypress = require('keypress');
 var telnet = require('telnet');
 
+// commands
+var commands = {
+  'b': 'roadcast to all',
+  'e': 'mit to socket',
+  'x': ' disconnect socket',
+  'hjkl': ' to scroll'
+};
+
 // Module exports.
 module.exports = Monitor;
 
@@ -174,7 +182,7 @@ Monitor.prototype._getVisibleSockets = function() {
   var socketIDs = Object.keys(this.sockets),
     windowHeight = this._getWindowSize().height;
   
-  return (socketIDs.length > windowHeight - 3) ? windowHeight - 3 : socketIDs.length;
+  return (socketIDs.length > windowHeight - 5) ? windowHeight - 5 : socketIDs.length;
 };
 
 // Handle a stdin keypress.
@@ -346,8 +354,8 @@ Monitor.prototype._renderBody = function() {
     }
   }
 
-  this._clear(3);
-  this._resetCursor(3);
+  this._clear(5);
+  this._resetCursor(5);
 
   if (socketIDs.length === 0) {
     this.cursor.write('No sockets connected.');
@@ -371,8 +379,8 @@ Monitor.prototype._renderBody = function() {
 // Renders the current stage of emit mode.
 Monitor.prototype._renderEmit = function() {
   if (this.emitMode > 0){
-    this._clear(3);
-    this._resetCursor(3);
+    this._clear(5);
+    this._resetCursor(5);
 
     if (this.broadcastMode) {
       this.cursor.bold().write('Broadcasting to all sockets.\n');
@@ -432,6 +440,7 @@ Monitor.prototype._renderSocket = function(socket, selected) {
 // Renders the title of the application.
 Monitor.prototype._renderTitle = function() {
   var title = 'Monitor.IO',
+    commaFlag = true,
     exitText = '(Ctrl + C to exit)',
     windowWidth = this._getWindowSize().width,
     whiteSpace = Array(windowWidth - title.length - exitText.length).join(' ');
@@ -443,9 +452,19 @@ Monitor.prototype._renderTitle = function() {
 
   this.cursor.reset().write(whiteSpace);
   this.cursor.hex('#6349B6').write(exitText);
-  // this.cursor.reset().write('\n\n');
-  this.cursor.reset().write('\n');
-  this.cursor.write('[b]roadcast, [e]mit to socket, [x] disconnect socket, [hjkl] scroll');
+  this.cursor.reset().write('\n\n');
+
+  for (var command in commands) {
+    if (commaFlag) {
+      commaFlag = false;
+    } else {
+      this.cursor.write(', ');
+    }
+    
+    this.cursor.bold().write('[' + command + ']');
+    this.cursor.reset().write(commands[command]);
+  }
+
   this.cursor.reset().write('\n\n');
 };
 
