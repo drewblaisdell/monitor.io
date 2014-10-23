@@ -514,6 +514,7 @@ Monitor.prototype._scrollY = function(y) {
 // Start emit mode with the given socket
 Monitor.prototype._switchEmitMode = function(mode) {
   var evtData,
+    socketIDs = Object.keys(this.sockets),
     self = this;
   
   this.emitMode = mode;
@@ -540,7 +541,11 @@ Monitor.prototype._switchEmitMode = function(mode) {
     }
 
     if (this.broadcastMode) {
-      
+      for (var i = 0; i < socketIDs.length; i++) {
+        var socket = this.sockets[socketIDs[i]];
+
+        socket.emit(this.emitBuffer[1], evtData);
+      }
     } else {
       this.emitSocket.emit(this.emitBuffer[1], evtData);
     }
