@@ -1,9 +1,7 @@
-// Module dependencies.
 var ansi = require('ansi');
 var keypress = require('keypress');
 var telnet = require('telnet');
 
-// commands
 var commands = {
   'b': 'roadcast to all',
   'e': 'mit to socket',
@@ -11,10 +9,14 @@ var commands = {
   'hjkl': ' to scroll'
 };
 
-// Module exports.
+var defaultOptions = {
+  width: 100,
+  height: 50,
+  port: 1337
+};
+
 module.exports = Monitor;
 
-// Monitor constructor.
 function Monitor(options) {
   if (!(this instanceof Monitor)) {
     return new Monitor(options);
@@ -23,9 +25,9 @@ function Monitor(options) {
   var self = this;
 
   this.options = options || {};
-  this.options.width = this.options.width || 100;
-  this.options.height = this.options.height || 50;
-  this.options.port = this.options.port || 1337;
+  this.options.width = this.options.width || defaultOptions.width;
+  this.options.height = this.options.height || defaultOptions.height;
+  this.options.port = this.options.port || defaultOptions.port;
 
   this.scrollX = 0;
   this.scrollY = 0;
@@ -236,13 +238,11 @@ Monitor.prototype._handleKeypress = function(ch, key) {
       this._render();
       break;
     case 'k':
-      // this._scroll(-1);
       this._moveCursor(-1);
       this.dirty.body = true;
       this._render();
       break;
     case 'j':
-      // this._scroll(1);
       this._moveCursor(1);
       this.dirty.body = true;
       this._render();
@@ -259,19 +259,14 @@ Monitor.prototype._handleKeypress = function(ch, key) {
 // it connects and saves a reference.
 Monitor.prototype._middleware = function(socket, next) {
   socket._monitor = {};
-
   socket.monitor = this._monitorSetter.bind(this, socket);
-
   this.sockets[socket.id] = socket;
-
   this.dirty.body = true;
-
   next();
 };
 
 Monitor.prototype._monitorSetter = function(socket, name, value) {
   socket._monitor[name] = value;
-
   if (this.running) {
     this.dirty.body = true;
     this._render();
@@ -296,7 +291,6 @@ Monitor.prototype._pad = function(str, width) {
   while (str.length < width) {
     str += ' ';
   }
-
   return str;
 };
 
@@ -309,7 +303,6 @@ Monitor.prototype._removeDisconnectedSockets = function() {
 
   for (var i = 0; i < socketIDs.length; i++) {
     current = this.sockets[socketIDs[i]];
-
     if (current.disconnected) {
       delete this.sockets[socketIDs[i]];
       this.dirty.body = true;
@@ -348,7 +341,6 @@ Monitor.prototype._renderBody = function() {
 
   if (visibleSockets < socketIDs.length) {
     startingSocket = this.scrollY;
-
     if (this.scrollY + visibleSockets >= socketIDs.length) {
       this.scrollY = socketIDs.length - visibleSockets;
     }
@@ -460,7 +452,7 @@ Monitor.prototype._renderTitle = function() {
     } else {
       this.cursor.write(', ');
     }
-    
+
     this.cursor.bold().write('[' + command + ']');
     this.cursor.reset().write(commands[command]);
   }
