@@ -9,25 +9,27 @@ var commands = {
   'hjkl': ' to scroll'
 };
 
-var defaultOptions = {
+var defaultOpts = {
   width: 100,
   height: 50,
+  remote: true,
   port: 1337
 };
 
 module.exports = Monitor;
 
-function Monitor(options) {
+function Monitor(opts) {
   if (!(this instanceof Monitor)) {
-    return new Monitor(options);
+    return new Monitor(opts);
   }
   
   var self = this;
 
-  this.options = options || {};
-  this.options.width = this.options.width || defaultOptions.width;
-  this.options.height = this.options.height || defaultOptions.height;
-  this.options.port = this.options.port || defaultOptions.port;
+  this.opts = opts || {};
+  this.opts.remote = this.opts.remote || defaultOpts.remote;
+  this.opts.width = this.opts.width || defaultOpts.width;
+  this.opts.height = this.opts.height || defaultOpts.height;
+  this.opts.port = this.opts.port || defaultOpts.port;
 
   this.scrollX = 0;
   this.scrollY = 0;
@@ -55,7 +57,7 @@ function Monitor(options) {
 
   this.ansi = ansi;
 
-  if (options.remote) {
+  if (opts.remote) {
     // start a server
     telnet.createServer(function(client) {
       self.connectedSock = client;
@@ -75,8 +77,8 @@ function Monitor(options) {
 
       client.on('window size', function(e) {
         if (e.width && e.height) {
-          self.options.width = e.width;
-          self.options.height = e.height;
+          self.opts.width = e.width;
+          self.opts.height = e.height;
           self.dirty.title = true;
           self._render();
         }
@@ -89,9 +91,9 @@ function Monitor(options) {
       self._addNewLines();
       self._run();
       self._render();
-    }).listen(this.options.port);
+    }).listen(this.opts.port);
     
-    console.log('Monitor.IO server started on '+ this.options.port);
+    console.log('Monitor.IO server started on '+ this.opts.port);
   } else {
     // output to the current stdout
     this.cursor = ansi(process.stdout);
@@ -165,9 +167,9 @@ Monitor.prototype._disconnectSocket = function(id) {
 
 Monitor.prototype._getWindowSize = function() {
   var windowSize, width, height;
-  if (this.options.remote || process.stdout.getWindowSize === undefined) {
-    width = this.options.width;
-    height = this.options.height;
+  if (this.opts.remote || process.stdout.getWindowSize === undefined) {
+    width = this.opts.width;
+    height = this.opts.height;
   } else if (typeof process.stdout.getWindowSize === 'function') {
     windowSize = process.stdout.getWindowSize();
     width = windowSize[0];
