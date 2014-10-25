@@ -12,7 +12,6 @@ var commands = {
 var defaultOpts = {
   width: 100,
   height: 40,
-  remote: true,
   port: 1337
 };
 
@@ -26,7 +25,7 @@ function Monitor(opts) {
   var self = this;
 
   this.opts = opts || {};
-  this.opts.remote = this.opts.remote || defaultOpts.remote;
+  this.opts.remote = (typeof this.opts.port === undefined) ? false : true;
   this.opts.width = this.opts.width || defaultOpts.width;
   this.opts.height = this.opts.height || defaultOpts.height;
   this.opts.port = this.opts.port || defaultOpts.port;
@@ -125,7 +124,8 @@ function Monitor(opts) {
     process.on('uncaughtException', exitHandler);
 
     this._run();
-    this._attemptBodyRender();
+    this._renderTitle();
+    this._renderBody();
   }
 
   return this._middleware.bind(this);
