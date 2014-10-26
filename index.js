@@ -6,7 +6,7 @@ var monitor = require('./socket.io-monitor');
 
 app.use(express.static(__dirname));
 
-var names = ['Alice', 'Bob', 'Eve', 'Dave', 'Craig', 'Peggy', 'Sybil', 'Walter', 'Wendy', 'Erin', 'Amber', 'Jeremy', 'Francoise', 'Heather', 'Alfred', 'Marion', 'Theodore', 'Margaret', 'Agitha'];
+var names = ['Alice', 'Bob', 'Eve', 'Dave', 'Craig', 'Peggy', 'Sybil', 'Walter', 'Wendy', 'Erin', 'Amber', 'Jeremy', 'Francoise', 'Heather', 'Alfred', 'Marion', 'Theodore', 'Margaret', 'Agitha', 'Janice', 'Julia'];
 var messages = [
   'I read the news today, oh boy.',
   'About a lucky man who made the grade',
@@ -17,7 +17,15 @@ var messages = [
   'Now they know how many holes it takes to fill the Albert Hall.',
   'I am he as you are he as you are me and we are all together.',
   'Currently sitting on a cornflake, waiting for the van to come.',
-  'Sitting in an English garden, waiting for the sun.'
+  'Sitting in an English garden, waiting for the sun.',
+  'Half of what I say is meaningless.',
+  'These are words that go together well.',
+  'Sont les mots qui vont tres bien ensemble',
+  'Let me tell you how it will be. There\'s one for you, and three for me... because I\'m the taxman.',
+  'Yeah, I\'m the taxman.',
+  'It\'s dangerous to go alone. Take this.',
+  'Javascript is a delicious beverage, frequently enjoyed at breakfast.',
+  'This is a sentence I wrote for the Monitor.IO demo. It does not have any special meaning.'
 ];
 
 

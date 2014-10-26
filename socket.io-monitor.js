@@ -322,7 +322,7 @@ Monitor.prototype._removeDisconnectedSockets = function() {
 Monitor.prototype._renderBody = function() {
   var socketIDs = Object.keys(this.sockets),
     windowHeight = this._getWindowSize().height,
-    visibleSockets = (socketIDs.length > windowHeight - 3) ? windowHeight - 3 : socketIDs.length,
+    visibleSockets = (socketIDs.length > windowHeight - 5) ? windowHeight - 5 : socketIDs.length,
     startingSocket = 0;
 
   if (visibleSockets < socketIDs.length) {
