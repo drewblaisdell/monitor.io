@@ -267,9 +267,13 @@ Monitor.prototype._middleware = function(socket, next) {
 };
 
 Monitor.prototype._monitorSetter = function(socket, name, value) {
-  socket._monitor[name] = value;
-  if (this.running) {
-    this.dirty = true;
+  if (value !== undefined) {
+    socket._monitor[name] = value;
+    if (this.running) {
+      this.dirty = true;
+    }
+  } else {
+    return socket._monitor[name];
   }
 };
 

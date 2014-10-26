@@ -6,7 +6,7 @@ var monitor = require('./socket.io-monitor');
 
 app.use(express.static(__dirname));
 
-var names = ['Alice', 'Bob', 'Eve', 'Dave', 'Craig', 'Peggy', 'Sybil', 'Walter', 'Wendy', 'Erin'];
+var names = ['Alice', 'Bob', 'Eve', 'Dave', 'Craig', 'Peggy', 'Sybil', 'Walter', 'Wendy', 'Erin', 'Amber', 'Jeremy', 'Francoise', 'Heather', 'Alfred', 'Marion', 'Theodore', 'Margaret', 'Agitha'];
 var messages = [
   'I read the news today, oh boy.',
   'About a lucky man who made the grade',
@@ -27,6 +27,18 @@ io.on('connection', function(socket) {
   socket.monitor('name', shuffle(names)[0]);
   socket.monitor('latency', Math.floor(Math.random() * 450));
   socket.monitor('lastMessage', shuffle(messages)[0]);
+
+  setInterval(function() {
+    if (Math.random() < .5) {
+      var latency = socket.monitor('latency');
+
+      if (Math.random() < .5) {
+        socket.monitor('latency', latency + Math.floor(Math.random() * 20));
+      } else {
+        socket.monitor('latency', latency - Math.floor(Math.random() * 20));       
+      }
+    }
+  }, 2500);
 });
 
 io.use(monitor({ port: 8000 }));
