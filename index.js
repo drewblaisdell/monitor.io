@@ -25,6 +25,7 @@ io.on('connection', function(socket) {
   socket.conn.remoteAddress = randomIP();
 
   socket.monitor('name', shuffle(names)[0]);
+  socket.monitor('latency', Math.floor(Math.random() * 450));
   socket.monitor('lastMessage', shuffle(messages)[0]);
 });
 

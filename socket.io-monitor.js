@@ -409,7 +409,7 @@ Monitor.prototype._renderSocket = function(socket, selected) {
       }
     }
 
-    if (buffer.length > windowWidth - 15) {
+    if (buffer.length > windowWidth - 18) {
       buffer = buffer.substring(0, windowWidth - 21) + '...';
     }
 
