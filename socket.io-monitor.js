@@ -366,6 +366,17 @@ Monitor.prototype._renderEmit = function() {
   if (this.emitMode > 1) {
     this.cursor.write('\nEvent data (JSON): ' + this.emitBuffer[2]);
   }
+
+  if (this.emitMode > 2) {
+    this.cursor.hide().write('\n\nEvent "').bold().write(this.emitBuffer[1]);
+    this.cursor.reset().write('" emitted to ');
+
+    if (this.broadcastMode) {
+      this.cursor.bold().write('all sockets.').reset();
+    } else {
+      this.cursor.bold().write(this.emitSocket.conn.remoteAddress).reset();
+    }
+  }
 };
 
 // Renders a single socket in the terminal.
@@ -377,9 +388,9 @@ Monitor.prototype._renderSocket = function(socket, selected) {
     this.cursor.reset().write(' disconnected...');
   } else {
     if (selected) {
-      this.cursor.bold().write(this._pad('> '+ socket.conn.remoteAddress, 15)).reset();
+      this.cursor.bold().write(this._pad('> '+ socket.conn.remoteAddress, 17)).reset();
     } else {
-      this.cursor.bold().write(this._pad(socket.conn.remoteAddress, 15)).reset();
+      this.cursor.bold().write(this._pad(socket.conn.remoteAddress, 17)).reset();
     }
 
     var attach = Object.keys(socket._monitor),
@@ -399,7 +410,7 @@ Monitor.prototype._renderSocket = function(socket, selected) {
     }
 
     if (buffer.length > windowWidth - 15) {
-      buffer = buffer.substring(0, windowWidth - 18) + '...';
+      buffer = buffer.substring(0, windowWidth - 21) + '...';
     }
 
     this.cursor.write(buffer);
@@ -526,13 +537,16 @@ Monitor.prototype._switchEmitMode = function(mode) {
     } else {
       this.emitSocket.emit(this.emitBuffer[1], evtData);
     }
-
-    this._resetEmitMode();
   }
   
   if (mode === 3){
-    // we switched out of emit mode
-    this._renderBody();
+    // render the final stage, then switch out of emit mode
+    this._renderEmit();
+
+    setTimeout(function() {
+      self._resetEmitMode();
+      self._renderBody();
+    }, 2000);
   } else {
     this._renderEmit();
   }
