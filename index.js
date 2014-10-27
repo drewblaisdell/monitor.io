@@ -89,7 +89,7 @@ function Monitor(opts) {
       self._attemptBodyRender();
     }).listen(this.opts.port);
     
-    console.log('Monitor.IO server started on '+ this.opts.port);
+    console.log('monitor.io server started on '+ this.opts.port);
   } else {
     // output to the current stdout
     this.cursor = ansi(process.stdout);
@@ -425,7 +425,7 @@ Monitor.prototype._renderSocket = function(socket, selected) {
 
 // Renders the title of the application.
 Monitor.prototype._renderTitle = function() {
-  var title = 'Monitor.IO',
+  var title = 'monitor.io',
     commaFlag = true,
     exitText = '(Ctrl + C to exit)',
     windowWidth = this._getWindowSize().width,
