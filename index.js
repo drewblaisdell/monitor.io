@@ -268,13 +268,20 @@ Monitor.prototype._middleware = function(socket, next) {
 
 // Monitor setter/getter function that is added to every socket.
 Monitor.prototype._monitorFn = function(socket, name, value) {
-  if (value !== undefined) {
-    socket._monitor[name] = value;
+  if (typeof arguments[1] === 'object') {
+    socket._monitor = arguments[1];
     if (this.running) {
       this.dirty = true;
     }
-  } else {
-    return socket._monitor[name];
+  } else if (typeof arguments[1] === 'string') {
+    if (value === undefined) {
+      return socket._monitor[name];    
+    } else {
+      socket._monitor[name] = value;
+      if (this.running) {
+        this.dirty = true;
+      }
+    }
   }
 };
 
@@ -427,7 +434,7 @@ Monitor.prototype._renderSocket = function(socket, selected) {
 Monitor.prototype._renderTitle = function() {
   var title = 'monitor.io',
     commaFlag = true,
-    exitText = '(Ctrl + C to exit)',
+    exitText = '(ctrl + c to exit)',
     windowWidth = this._getWindowSize().width,
     whiteSpace = Array(windowWidth - title.length - exitText.length).join(' ');
 
