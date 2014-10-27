@@ -25,7 +25,7 @@ var socketio = require('socket.io')(server),
 socketio.use(monitorio({ port: 8000 })); // monitor.io started on port 8000
 ```
 
-Now use telnet to connect and control a real-time list of sockets connected to `socket.io`.
+Use telnet to connect to `monitor.io` and control a real-time list of sockets connected to `socket.io`.
 
 ``` bash
 $ telnet myapp.com 8000
