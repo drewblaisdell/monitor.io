@@ -2,7 +2,7 @@ monitor.io
 ==========
 ### Simple remote monitoring and debugging middleware for socket.io.
 
-![monitor.io](https://github.com/drewblaisdell/monitor.io/raw/master/monitor.io.gif "monitor.io")
+![monitor.io](https://i.imgur.com/O2XbYre.gif "monitor.io")
 
 `monitor.io` is a module for Node.js that runs as a telnet server, giving a remote client control of and information about sockets connected to an instance of `socket.io`.
 
