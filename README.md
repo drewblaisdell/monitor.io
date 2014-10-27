@@ -6,7 +6,7 @@ monitor.io
 
 `monitor.io` is a module for Node.js that runs as a telnet server, giving a remote client control of and information about sockets connected to an instance of `socket.io`.
 
-This makes it possible to disconnect, emit, or broadcast data to sockets in a remote terminal without interrupting the Node.js process running `socket.io`. `monitor.io`s also provides a real-time display of any data attached to a socket with the `socket#monitor` method.
+This makes it possible to disconnect, emit, or broadcast data to sockets in a remote terminal without interrupting the Node.js process running `socket.io`. `monitor.io` also provides a real-time display of any data attached to a socket with the `socket#monitor` method.
 
 Installation
 ------------
