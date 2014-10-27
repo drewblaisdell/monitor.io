@@ -76,6 +76,10 @@ code {
   margin: 100px auto;
 }
 
+#animation {
+  height: 284px;
+}
+
 #twitter {
   color: #6349b6;
   text-decoration: none;
