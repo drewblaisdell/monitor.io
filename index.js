@@ -52,7 +52,7 @@ function Monitor(opts) {
 
   this.ansi = ansi;
 
-  if (opts.remote) {
+  if (this.opts.remote) {
     // start a server
     telnet.createServer(function(client) {
       self.connectedSock = client;
