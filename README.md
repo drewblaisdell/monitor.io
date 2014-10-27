@@ -22,13 +22,13 @@ Usage
 var socketio = require('socket.io')(server),
   monitorio = require('monitor.io');
 
-socketio.use(monitorio({ port: 1337 })); // monitor.io started on port 1337
+socketio.use(monitorio({ port: 8000 })); // monitor.io started on port 8000
 ```
 
 Now use telnet to connect and control a real-time list of sockets connected to `socket.io`.
 
 ``` bash
-$ telnet mywebsite.com 1337
+$ telnet myapp.com 8000
 ```
 
 Use `hjkl` to scroll verticall/horizontally through the list of sockets, `e` to emit data to a specific socket, and `b` to broadcast data to all sockets.
