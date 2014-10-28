@@ -46,6 +46,14 @@ socketio.use(monitorio({ port: <span class="number">8000</span> }));
         <p>Use telnet to connect to <code>monitor.io</code> and control a real-time list of sockets connected to <code>socket.io</code>.</p>
         <pre><code class="lang-bash">$ telnet myapp.com 8000</code></pre>
         <p>Use <code>hjkl</code> to scroll verticall/horizontally through the list of sockets, <code>e</code> to emit data to a specific socket, and <code>b</code> to broadcast data to all sockets.</p>
+        <h3>Options</h3>
+        <h4>localOnly</h4>
+        <p>Enable to prevent connections from any IP except <code>127.0.0.1</code>. Defaults to false.</p>
+        <p>To run <code>monitor.io</code> safely in production, enable <code>localOnly</code> and access it via telnet via an ssh connection to your box.</p>
+        <h4>port</h4>
+        <p>The port number for the telnet server to listen on.</p>
+        <h4>remote</h4>
+        <p>Disable to run <code>monitor.io</code> in the current terminal window, without starting a telnet server. Defaults to true.</p>
         <h3>Monitoring</h3>
         <p><code>monitor.io</code> attaches a method named <code>monitor</code> to every socket object. This method attaches data to a socket and tells <code>monitor.io</code> to render this data in the <code>monitor.io</code> terminal window.</p>
         <p>Here is an example of how to attach the time that a socket connected to <code>socket.io</code>:</p>

@@ -33,6 +33,22 @@ $ telnet myapp.com 8000
 
 Use `hjkl` to scroll verticall/horizontally through the list of sockets, `e` to emit data to a specific socket, and `b` to broadcast data to all sockets.
 
+### Options
+
+#### localOnly
+
+Enable to prevent connections from any IP except `127.0.0.1`. Defaults to false.
+
+To run `monitor.io` safely in production, enable `localOnly` and access it via telnet via an ssh connection to your box.
+
+#### port
+
+The port number for the telnet server to listen on.
+
+#### remote
+
+Disable to run `monitor.io` in the current terminal window, without starting a telnet server. Defaults to true.
+
 ### Monitoring
 
 `monitor.io` attaches a method named `monitor` to every socket object. This method attaches data to a socket and tells `monitor.io` to render this data in the `monitor.io` terminal window.
@@ -62,6 +78,8 @@ socket.on('newPlayer', function(msg) {
   socket.monitor(newPlayer); // every key-value pair in newPlayer will be shown in the monitor.io terminal window.
 });
 ```
+
+`monitor.io` accepts an object 
 
 License
 -------
