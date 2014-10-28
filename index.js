@@ -12,7 +12,8 @@ var commands = {
 var defaultOpts = {
   width: 100,
   height: 40,
-  port: 1337
+  port: 1337,
+  localOnly: false
 };
 
 module.exports = Monitor;
@@ -29,6 +30,7 @@ function Monitor(opts) {
   this.opts.width = this.opts.width || defaultOpts.width;
   this.opts.height = this.opts.height || defaultOpts.height;
   this.opts.port = this.opts.port || defaultOpts.port;
+  this.opts.localOnly = this.opts.localOnly || defaultOpts.localOnly;
 
   this.scrollX = 0;
   this.scrollY = 0;
@@ -55,6 +57,15 @@ function Monitor(opts) {
   if (this.opts.remote) {
     // start a server
     telnet.createServer(function(client) {
+      var ip = client.input.remoteAddress;
+
+      if (self.opts.localOnly && ip !== '127.0.0.1') {
+        // disconnect the foreign client
+        client.input.end();
+        client.output.end();
+        return;
+      }
+
       self.connectedSock = client;
 
       // make unicode characters work properly
@@ -89,7 +100,10 @@ function Monitor(opts) {
       self._attemptBodyRender();
     }).listen(this.opts.port);
     
-    console.log('monitor.io server started on '+ this.opts.port);
+    console.log('monitor.io: server listening on '+ this.opts.port);
+    if (this.opts.localOnly) {
+      console.log('monitor.io: will only accept connections from 127.0.0.1');
+    }
   } else {
     // output to the current stdout
     this.cursor = ansi(process.stdout);
