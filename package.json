@@ -1,6 +1,6 @@
 {
   "name": "monitor.io",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "main": "index.js",
   "description": "remote monitoring and debugging for socket.io",
   "keywords": [

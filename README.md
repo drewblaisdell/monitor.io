@@ -79,8 +79,6 @@ socket.on('newPlayer', function(msg) {
 });
 ```
 
-`monitor.io` accepts an object 
-
 License
 -------
 MIT
