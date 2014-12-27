@@ -6,7 +6,7 @@ var monitorio = require('../index.js');
 describe('monitor.io', function() {
   describe('constructor', function() {
     it('should return socket.io middleware', function() {
-      var server = http.Server();
+      var server = http.createServer();
       var io = socketio(server);
       var middleware = monitorio();
 
